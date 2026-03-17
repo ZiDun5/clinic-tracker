@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>قسم صحة الفم والأسنان — تتبع المواعيد</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* ═══ VARIABLES ═══ */
+:root {
+  --primary:    #0d7a5f;
+  --primary-dk: #0a3d30;
+  --primary-lt: #e8f5f1;
+  --accent:     #d4a017;
+  --red:        #c0392b;
+  --bg:         #f0f4f3;
+  --card:       #ffffff;
+  --text:       #1a2e28;
+  --muted:      #5a8070;
+  --border:     #d4e4df;
+  --shadow:     0 2px 12px rgba(13,122,95,.09);
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { font-family:'Tajawal',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; padding-bottom:100px; }
+
+/* ═══ UPLOAD SCREEN ═══ */
+#uploadScreen {
+  min-height:100vh; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; padding:24px;
+}
+.upload-card {
+  background:var(--card); border-radius:20px; padding:40px 32px;
+  box-shadow:0 4px 30px rgba(13,122,95,.12); text-align:center;
+  max-width:420px; width:100%;
+}
+.upload-logo { font-size:48px; margin-bottom:16px; }
+.upload-card h1 { font-size:20px; font-weight:800; color:var(--primary-dk); }
+.upload-card p  { font-size:13px; color:var(--muted); margin-top:6px; line-height:1.7; }
+.upload-zone {
+  margin-top:28px; border:2.5px dashed var(--border);
+  border-radius:14px; padding:32px 20px; cursor:pointer;
+  transition:all .2s; background:var(--bg);
+  position:relative;
+}
+.upload-zone:hover, .upload-zone.drag { border-color:var(--primary); background:var(--primary-lt); }
+.upload-zone input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+.upload-zone .icon { font-size:36px; margin-bottom:10px; }
+.upload-zone .txt  { font-size:14px; color:var(--muted); }
+.upload-zone .hint { font-size:11px; color:#aac4bc; margin-top:4px; }
+.upload-progress {
+  margin-top:20px; display:none; align-items:center; gap:10px;
+  background:var(--primary-lt); border-radius:10px; padding:12px 16px;
+}
+.upload-progress .spinner {
+  width:18px; height:18px; border:2.5px solid var(--border);
+  border-top-color:var(--primary); border-radius:50%;
+  animation:spin .7s linear infinite; flex-shrink:0;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+.upload-progress span { font-size:13px; color:var(--primary-dk); font-weight:500; }
+.error-msg {
+  margin-top:16px; padding:12px 16px; background:#fdecea;
+  border-radius:10px; font-size:13px; color:var(--red);
+  border-right:3px solid var(--red); display:none; text-align:right;
+}
+
+/* ═══ APP HEADER ═══ */
+#appScreen { display:none; }
+.app-header {
+  background:var(--card); border-bottom:4px solid var(--primary);
+  padding:14px 20px; position:sticky; top:0; z-index:50;
+  box-shadow:var(--shadow);
+}
+.header-row { display:flex; justify-content:space-between; align-items:center; }
+.app-header h1 { font-size:16px; font-weight:800; color:var(--primary-dk); }
+.app-header p  { font-size:11px; color:var(--muted); margin-top:2px; }
+.date-badge {
+  background:var(--primary-lt); border:1px solid var(--primary);
+  border-radius:8px; padding:5px 12px; text-align:center; cursor:pointer;
+  transition:background .2s; white-space:nowrap;
+}
+.date-badge:hover { background:#d0ecdf; }
+.date-badge .d { font-size:13px; font-weight:800; color:var(--primary); }
+.date-badge .w { font-size:10px; color:var(--muted); }
+
+/* ═══ PROGRESS ═══ */
+.progress-wrap { padding:12px 20px 0; }
+.progress-row { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-bottom:5px; }
+.progress-track { height:7px; background:var(--border); border-radius:4px; overflow:hidden; }
+.progress-fill  { height:100%; background:var(--primary); border-radius:4px; transition:width .4s ease; }
+
+/* ═══ CONTROLS ═══ */
+.controls { display:flex; gap:10px; padding:12px 20px 0; }
+.search-wrap { flex:1; position:relative; }
+.search-wrap input {
+  width:100%; padding:9px 14px 9px 36px; border:1.5px solid var(--border);
+  border-radius:10px; font-family:'Tajawal',sans-serif; font-size:14px;
+  background:var(--card); color:var(--text); outline:none; transition:border-color .2s;
+}
+.search-wrap input:focus { border-color:var(--primary); }
+.search-icon { position:absolute; left:11px; top:50%; transform:translateY(-50%); font-size:15px; opacity:.4; }
+.reset-btn {
+  padding:9px 14px; background:#fdecea; color:var(--red);
+  border:1.5px solid #f5c6c2; border-radius:10px;
+  font-family:'Tajawal',sans-serif; font-size:13px; font-weight:700;
+  cursor:pointer; white-space:nowrap; transition:all .2s;
+}
+.reset-btn:hover { background:#fbd5d2; }
+.newfile-btn {
+  padding:9px 14px; background:var(--primary-lt); color:var(--primary-dk);
+  border:1.5px solid var(--primary); border-radius:10px;
+  font-family:'Tajawal',sans-serif; font-size:13px; font-weight:700;
+  cursor:pointer; white-space:nowrap; transition:all .2s;
+}
+.newfile-btn:hover { background:#d0ecdf; }
+
+/* ═══ UNMAPPED WARNING ═══ */
+.unmapped-warn {
+  margin:12px 20px 0; padding:12px 16px; background:#fff8e0;
+  border-radius:10px; font-size:13px; color:#7a5a00;
+  border-right:3px solid var(--accent); display:none;
+}
+
+/* ═══ DOCTOR CARDS ═══ */
+.cards-container { padding:14px 20px 0; display:flex; flex-direction:column; gap:14px; }
+.doctor-card {
+  background:var(--card); border-radius:14px; box-shadow:var(--shadow);
+  overflow:hidden; border:1.5px solid var(--border); transition:border-color .2s;
+}
+.doctor-card.has-attended { border-color:rgba(13,122,95,.4); }
+.card-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:13px 16px; background:var(--primary-lt);
+  border-bottom:1px solid var(--border); cursor:pointer; user-select:none;
+}
+.doc-name { font-size:15px; font-weight:700; color:var(--primary-dk); }
+.doc-meta { font-size:11px; color:var(--muted); margin-top:2px; }
+.card-stats { display:flex; align-items:center; gap:8px; }
+.stat-pill {
+  font-size:12px; font-weight:700; padding:3px 10px;
+  border-radius:20px; background:var(--primary); color:#fff;
+}
+.stat-pill.zero { background:#ccc; }
+.collapse-icon { font-size:12px; color:var(--muted); transition:transform .2s; }
+.doctor-card.collapsed .collapse-icon { transform:rotate(180deg); }
+.patients-list { padding:0; }
+.doctor-card.collapsed .patients-list { display:none; }
+
+.patient-row {
+  display:flex; align-items:flex-start; gap:12px;
+  padding:11px 16px; border-bottom:1px solid #f0f0f0; transition:background .15s;
+}
+.patient-row:last-child { border-bottom:none; }
+.patient-row:hover { background:#fafffe; }
+.patient-row.attended { background:#f2fbf7; }
+
+.check-box {
+  width:22px; height:22px; border-radius:6px; border:2px solid var(--border);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:all .15s; flex-shrink:0;
+  font-size:13px; background:var(--card); margin-top:2px;
+}
+.patient-row.attended .check-box { background:var(--primary); border-color:var(--primary); color:#fff; }
+
+.patient-info { flex:1; min-width:0; }
+.patient-name { font-size:14px; font-weight:500; }
+.patient-time {
+  display:inline-block; font-size:11px; color:#fff;
+  background:var(--primary); border-radius:5px; padding:1px 8px; margin-top:3px;
+}
+.note-field {
+  width:100%; margin-top:6px; padding:6px 10px;
+  border:1.5px solid var(--border); border-radius:8px;
+  font-family:'Tajawal',sans-serif; font-size:13px;
+  background:#fafffe; color:var(--text); outline:none;
+  transition:border-color .2s; resize:none; display:none;
+}
+.note-field.visible { display:block; }
+.note-field:focus { border-color:var(--primary); }
+.note-field::placeholder { color:#aac4bc; }
+.doctor-card.hidden { display:none; }
+
+/* ═══ FAB & DRAWER ═══ */
+.fab {
+  position:fixed; bottom:24px; left:24px; width:56px; height:56px;
+  border-radius:50%; background:var(--primary); color:#fff; font-size:22px;
+  border:none; cursor:pointer; box-shadow:0 4px 18px rgba(13,122,95,.4);
+  display:flex; align-items:center; justify-content:center;
+  transition:transform .2s; z-index:90;
+}
+.fab:hover { transform:scale(1.08); }
+.drawer-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,.35);
+  z-index:95; opacity:0; pointer-events:none; transition:opacity .25s;
+}
+.drawer-overlay.open { opacity:1; pointer-events:all; }
+.stats-drawer {
+  position:fixed; bottom:0; left:0; right:0; background:var(--card);
+  border-radius:18px 18px 0 0; box-shadow:0 -4px 30px rgba(0,0,0,.15);
+  z-index:100; transform:translateY(100%);
+  transition:transform .3s cubic-bezier(.4,0,.2,1); max-height:80vh; overflow-y:auto;
+}
+.stats-drawer.open { transform:translateY(0); }
+.drawer-handle { width:40px; height:4px; background:#ddd; border-radius:2px; margin:12px auto 0; }
+.drawer-header {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:14px 20px 10px; border-bottom:1px solid var(--border);
+}
+.drawer-header h3 { font-size:16px; font-weight:700; color:var(--primary-dk); }
+.close-btn { background:none; border:none; font-size:20px; cursor:pointer; color:var(--muted); }
+.stats-summary {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:10px; padding:14px 20px;
+}
+.stat-box { background:var(--primary-lt); border-radius:10px; padding:12px; text-align:center; }
+.stat-box .val { font-size:26px; font-weight:800; color:var(--primary); line-height:1; }
+.stat-box .lbl { font-size:11px; color:var(--muted); margin-top:4px; }
+.stats-list { padding:0 20px; display:flex; flex-direction:column; gap:8px; }
+.stat-row {
+  display:flex; align-items:center; gap:10px; padding:10px 14px;
+  border-radius:10px; background:var(--bg);
+}
+.stat-row.active { background:var(--primary-lt); }
+.stat-num { font-size:11px; color:var(--muted); width:18px; text-align:center; }
+.stat-name { flex:1; font-size:14px; font-weight:500; }
+.stat-count {
+  font-size:13px; font-weight:700; padding:3px 10px;
+  border-radius:20px; background:#ddd; color:#666;
+}
+.stat-row.active .stat-count { background:var(--primary); color:#fff; }
+.export-wrap { padding:14px 20px 20px; }
+.export-btn {
+  width:100%; padding:13px; background:var(--primary-dk); color:#fff;
+  border:none; border-radius:12px; font-family:'Tajawal',sans-serif;
+  font-size:15px; font-weight:700; cursor:pointer; transition:opacity .2s;
+}
+.export-btn:hover { opacity:.88; }
+.export-btn:disabled { opacity:.6; cursor:not-allowed; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════
+     UPLOAD SCREEN
+     ═══════════════════════════════════ -->
+<div id="uploadScreen">
+  <div class="upload-card">
+    <div class="upload-logo">🦷</div>
+    <h1>قسم صحة الفم والأسنان</h1>
+    <p>ارفع ملف Excel اليومي لتوليد<br>قائمة المواعيد والحضور</p>
+
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" accept=".xlsx,.xls" id="fileInput" onchange="handleFile(this.files[0])">
+      <div class="icon">📂</div>
+      <div class="txt">اسحب ملف Excel هنا أو اضغط للاختيار</div>
+      <div class="hint">يدعم .xlsx و .xls — مواعيد 4م حتى 11م فقط</div>
+    </div>
+
+    <div class="upload-progress" id="uploadProgress">
+      <div class="spinner"></div>
+      <span id="progressMsg">جاري قراءة الملف...</span>
+    </div>
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     APP SCREEN
+     ═══════════════════════════════════ -->
+<div id="appScreen">
+
+  <div class="app-header">
+    <div class="header-row">
+      <div>
+        <h1>قسم صحة الفم والأسنان</h1>
+        <p>تتبع حضور المرضى — مواعيد المساء</p>
+      </div>
+      <div class="date-badge" onclick="goUpload()" title="رفع ملف جديد">
+        <div class="d" id="headerDate">—</div>
+        <div class="w" id="headerDay">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-row">
+      <span>الحضور</span>
+      <span id="progressLabel">0 / 0</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="ابحث عن مريض أو طبيب..." oninput="filterCards()">
+    </div>
+    <button class="newfile-btn" onclick="goUpload()">📂 ملف جديد</button>
+    <button class="reset-btn" onclick="confirmReset()">↺ تصفير</button>
+  </div>
+
+  <div class="unmapped-warn" id="unmappedWarn"></div>
+  <div class="cards-container" id="cardsContainer"></div>
+
+  <button class="fab" onclick="toggleDrawer()">📊</button>
+  <div class="drawer-overlay" id="drawerOverlay" onclick="toggleDrawer()"></div>
+
+  <div class="stats-drawer" id="statsDrawer">
+    <div class="drawer-handle"></div>
+    <div class="drawer-header">
+      <h3>ملخص اليوم</h3>
+      <button class="close-btn" onclick="toggleDrawer()">✕</button>
+    </div>
+    <div class="stats-summary">
+      <div class="stat-box"><div class="val" id="st-total">0</div><div class="lbl">إجمالي المواعيد</div></div>
+      <div class="stat-box"><div class="val" id="st-attended">0</div><div class="lbl">الحاضرون</div></div>
+      <div class="stat-box"><div class="val" id="st-rate">0%</div><div class="lbl">نسبة الحضور</div></div>
+    </div>
+    <div class="stats-list" id="statsList"></div>
+    <div class="export-wrap">
+      <button class="export-btn" id="exportBtn" onclick="exportToSheets()">💾 حفظ في Google Sheets</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   CONFIG
+   ═══════════════════════════════════════════════ */
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzTdAVGL9YeyXAo7tGHyXEJ4lK-zUlw7dFqDWvUaRw4CZVDlICWsgKTi5DdW3Zt6lUY1A/exec';
+
+const CANONICAL_15 = [
+  'ثامر العثمان','حجاب العنزي','حمدان العتيبي','ختام المرشد',
+  'زريفة العنزي','زياد الحربي','سارة الشهراني','سلمى الكناني',
+  'سلطانة الايداء','فاطمة الحربي','ماجد الجبرين','محمد الدوسري',
+  'منيفة المطيري','نوال الطياوي','وضحى العتيبي'
+];
+
+// كلمات مفتاحية → اسم رسمي (الأولوية للاسم الأول)
+const KEYWORD_MAP = [
+  ['ثامر',    'ثامر العثمان'],
+  ['حمدان',   'حمدان العتيبي'],
+  ['ختام',    'ختام المرشد'],
+  ['زياد',    'زياد الحربي'],
+  ['ماجد',    'ماجد الجبرين'],
+  ['محمد',    'محمد الدوسري'],
+  ['فاطم',    'فاطمة الحربي'],
+  ['سار',     'سارة الشهراني'],
+  ['سلمى',    'سلمى الكناني'],
+  ['سلمه',    'سلمى الكناني'],
+  ['منيف',    'منيفة المطيري'],
+  ['نوال',    'نوال الطياوي'],
+  // عنزي → حجاب أو زريفة (نميز بالاسم الأول)
+  ['حجاب',    'حجاب العنزي'],
+  ['زريف',    'زريفة العنزي'],
+  // عتيبي → وضحى أو حمدان (حمدان سبق)
+  ['وضح',     'وضحى العتيبي'],
+  ['سلطان',   'سلطانة الايداء'],
+  ['الايداء', 'سلطانة الايداء'],
+  ['الكناني', 'سلمى الكناني'],
+  ['المرشد',  'ختام المرشد'],
+  ['الجبرين', 'ماجد الجبرين'],
+  ['الدوسري', 'محمد الدوسري'],
+  ['المطيري', 'منيفة المطيري'],
+  ['الشهراني','سارة الشهراني'],
+  ['الطياوي', 'نوال الطياوي'],
+];
+
+function normalize(str) {
+  return str
+    .replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
+    .replace(/\s+/g, ' ').trim();
+}
+
+function toCanonical(raw) {
+  const clean = normalize(raw)
+    .replace(/^(السيد|السيده|السيدة|الآنسه|الآنسة|الانسه|د\.|د\/|دكتور|دكتوره)\s*/g, '')
+    .replace(/\s+(بن|بنت|ال)\s+/g, ' ')
+    .trim();
+  const n = normalize(clean);
+  for (const [kw, canon] of KEYWORD_MAP) {
+    if (n.includes(normalize(kw))) return canon;
+  }
+  return null;
+}
+
+/* ═══════════════════════════════════════════════
+   TIME PARSING — يدعم الأرقام العربية
+   ═══════════════════════════════════════════════ */
+const AR2EN = str => str.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+
+function parseTimeMins(raw) {
+  if (!raw) return null;
+  const s   = AR2EN(String(raw)).trim();
+  const pm  = s.includes('م');
+  const am  = s.includes('ص');
+  const t   = s.replace(/[مص\s]/g, '');
+  const [h, m] = t.split(':').map(Number);
+  if (isNaN(h) || isNaN(m)) return null;
+  let mins = h * 60 + m;
+  if (pm && h !== 12) mins += 720;
+  if (am && h === 12) mins -= 720;
+  return mins;
+}
+
+function fmtTime(raw) {
+  return AR2EN(String(raw)).trim();
+}
+
+/* ═══════════════════════════════════════════════
+   STATE
+   ═══════════════════════════════════════════════ */
+let APPOINTMENTS = [];
+let doctorGroups = {};
+let STATE = {};
+let NOTES = {};
+let fileDate = '';
+let fileDay  = '';
+let stateKey = '';
+let noteKey  = '';
+
+const DAYS = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+
+/* ═══════════════════════════════════════════════
+   UPLOAD & PARSE
+   ═══════════════════════════════════════════════ */
+function goUpload() {
+  document.getElementById('appScreen').style.display   = 'none';
+  document.getElementById('uploadScreen').style.display = 'flex';
+  document.getElementById('fileInput').value = '';
+  document.getElementById('errorMsg').style.display = 'none';
+  document.getElementById('uploadProgress').style.display = 'none';
+}
+
+// Drag & drop
+const zone = document.getElementById('uploadZone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); handleFile(e.dataTransfer.files[0]); });
+
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg; el.style.display = 'block';
+  document.getElementById('uploadProgress').style.display = 'none';
+}
+
+function handleFile(file) {
+  if (!file) return;
+  if (!file.name.match(/\.xlsx?$/i)) { showError('الملف يجب أن يكون بصيغة .xlsx أو .xls'); return; }
+
+  document.getElementById('errorMsg').style.display = 'none';
+  const prog = document.getElementById('uploadProgress');
+  prog.style.display = 'flex';
+  document.getElementById('progressMsg').textContent = 'جاري قراءة الملف...';
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      document.getElementById('progressMsg').textContent = 'جاري تحليل البيانات...';
+      const wb   = XLSX.read(e.target.result, {type:'array'});
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+      if (rows.length < 2) { showError('الملف فارغ أو لا يحتوي على بيانات'); return; }
+
+      // تحديد أعمدة الطبيب والمريض والوقت من الصف الأول
+      const header = rows[0].map(h => String(h).trim());
+      const docCol  = header.findIndex(h => h.includes('الطبيب') || h.includes('طبيب'));
+      const patCol  = header.findIndex(h => h.includes('المراجع') || h.includes('مريض') || h.includes('اسم المراجع'));
+      const timeCol = header.findIndex(h => h.includes('بداية') || h.includes('وقت الموعد') || h.includes('وقت بداية'));
+      const dateCol = header.findIndex(h => h.includes('تاريخ الموعد') && h.includes('ميلادي') || h === 'تاريخ الموعد بالميلادي');
+
+      if (docCol < 0 || patCol < 0 || timeCol < 0) {
+        showError('تعذّر التعرف على أعمدة الملف. تأكد أنه يحتوي على: اسم الطبيب، اسم المراجع، وقت الموعد.');
+        return;
+      }
+
+      // استخراج التاريخ من أول صف بيانات
+      let rawDate = '';
+      for (let i=1; i<rows.length; i++) {
+        if (rows[i][dateCol || 11]) { rawDate = String(rows[i][dateCol || 11]).trim(); break; }
+      }
+
+      let parsedDate = new Date();
+      if (rawDate) {
+        const d = new Date(rawDate);
+        if (!isNaN(d)) parsedDate = d;
+      }
+      fileDate = `${parsedDate.getDate()}/${parsedDate.getMonth()+1}/${parsedDate.getFullYear()}`;
+      fileDay  = DAYS[parsedDate.getDay()];
+      const isoDate = parsedDate.toISOString().split('T')[0];
+      stateKey = 'cls_' + isoDate;
+      noteKey  = 'cln_' + isoDate;
+
+      // تحليل الصفوف
+      const appts = [];
+      const unmapped = new Set();
+
+      for (let i=1; i<rows.length; i++) {
+        const row  = rows[i];
+        const doc  = String(row[docCol]  || '').trim();
+        const pat  = String(row[patCol]  || '').trim();
+        const time = String(row[timeCol] || '').trim();
+        if (!doc || !pat || !time) continue;
+
+        const mins = parseTimeMins(time);
+        if (mins === null || mins < 960 || mins > 1380) continue; // 4م=960، 11م=1380
+
+        const canon = toCanonical(doc);
+        if (!canon) { unmapped.add(doc); continue; }
+
+        appts.push({ doctor:canon, patient:pat, time:fmtTime(time), time_mins:mins });
+      }
+
+      if (appts.length === 0) {
+        showError('لا توجد مواعيد في الفترة 4م–11م، أو تعذّر قراءة الأسماء.');
+        return;
+      }
+
+      appts.sort((a,b) => a.time_mins - b.time_mins);
+      APPOINTMENTS = appts;
+
+      // استرجاع الحالة المحفوظة
+      STATE = JSON.parse(localStorage.getItem(stateKey) || '{}');
+      NOTES = JSON.parse(localStorage.getItem(noteKey)  || '{}');
+
+      // بناء مجموعات الأطباء
+      doctorGroups = {};
+      APPOINTMENTS.forEach((a,idx) => {
+        if (!doctorGroups[a.doctor]) doctorGroups[a.doctor] = [];
+        doctorGroups[a.doctor].push({...a, idx});
+      });
+
+      // تحذير غير مربوط
+      const warn = document.getElementById('unmappedWarn');
+      if (unmapped.size > 0) {
+        warn.textContent = `⚠️ أسماء لم يتم التعرف عليها (مستبعدة): ${[...unmapped].join(' · ')}`;
+        warn.style.display = 'block';
+      } else {
+        warn.style.display = 'none';
+      }
+
+      // انتقال للتطبيق
+      document.getElementById('headerDate').textContent = fileDate;
+      document.getElementById('headerDay').textContent  = fileDay;
+      prog.style.display = 'none';
+      document.getElementById('uploadScreen').style.display = 'none';
+      document.getElementById('appScreen').style.display    = 'block';
+      document.getElementById('searchInput').value = '';
+      buildCards();
+
+    } catch(err) {
+      showError('خطأ في قراءة الملف: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+/* ═══════════════════════════════════════════════
+   BUILD CARDS
+   ═══════════════════════════════════════════════ */
+function buildCards() {
+  const container = document.getElementById('cardsContainer');
+  container.innerHTML = '';
+
+  Object.entries(doctorGroups).forEach(([doc, patients]) => {
+    const attended = patients.filter(p => STATE[p.idx]).length;
+    const card = document.createElement('div');
+    card.className = `doctor-card${attended > 0 ? ' has-attended' : ''}`;
+    card.dataset.doc = doc;
+
+    card.innerHTML = `
+      <div class="card-header" onclick="toggleCard(this)">
+        <div>
+          <div class="doc-name">أ. ${doc}</div>
+          <div class="doc-meta">${patients.length} موعد</div>
+        </div>
+        <div class="card-stats">
+          <span class="stat-pill${attended===0?' zero':''}">${attended}/${patients.length}</span>
+          <span class="collapse-icon">▲</span>
+        </div>
+      </div>
+      <div class="patients-list">
+        ${patients.map(p => `
+          <div class="patient-row${STATE[p.idx]?' attended':''}" id="row-${p.idx}">
+            <div class="check-box" onclick="toggleAttend(${p.idx})">${STATE[p.idx]?'✓':''}</div>
+            <div class="patient-info">
+              <div class="patient-name">${p.patient}</div>
+              <span class="patient-time">${p.time}</span>
+              <textarea class="note-field${STATE[p.idx]?' visible':''}"
+                id="note-${p.idx}" rows="1"
+                placeholder="اسم الأخصائي الفعلي (اختياري)"
+                oninput="saveNote(${p.idx},this.value)">${NOTES[p.idx]||''}</textarea>
+            </div>
+          </div>`).join('')}
+      </div>`;
+    container.appendChild(card);
+  });
+
+  updateProgress();
+  updateStats();
+}
+
+/* ═══════════════════════════════════════════════
+   INTERACTIONS
+   ═══════════════════════════════════════════════ */
+function toggleCard(h) { h.closest('.doctor-card').classList.toggle('collapsed'); }
+
+function toggleAttend(idx) {
+  STATE[idx] = !STATE[idx];
+  localStorage.setItem(stateKey, JSON.stringify(STATE));
+  const row  = document.getElementById('row-' + idx);
+  const box  = row.querySelector('.check-box');
+  const note = document.getElementById('note-' + idx);
+  row.classList.toggle('attended', STATE[idx]);
+  box.textContent = STATE[idx] ? '✓' : '';
+  note.classList.toggle('visible', STATE[idx]);
+  const card = row.closest('.doctor-card');
+  const doc  = card.dataset.doc;
+  const cnt  = doctorGroups[doc].filter(p => STATE[p.idx]).length;
+  card.classList.toggle('has-attended', cnt > 0);
+  const pill = card.querySelector('.stat-pill');
+  pill.textContent = `${cnt}/${doctorGroups[doc].length}`;
+  pill.classList.toggle('zero', cnt === 0);
+  updateProgress();
+  updateStats();
+}
+
+function saveNote(idx, val) {
+  NOTES[idx] = val;
+  localStorage.setItem(noteKey, JSON.stringify(NOTES));
+}
+
+function resolveNote(note) {
+  if (!note) return null;
+  const clean = note.replace(/^أ\.\s*|^د\.\s*/,'').trim();
+  for (const c of CANONICAL_15) {
+    if (c.split(' ').some(p => p.length > 2 && clean.includes(p))) return c;
+  }
+  return null;
+}
+
+function updateProgress() {
+  const total    = APPOINTMENTS.length;
+  const attended = Object.values(STATE).filter(Boolean).length;
+  const pct      = total > 0 ? Math.round(attended/total*100) : 0;
+  document.getElementById('progressLabel').textContent = `${attended} / ${total}`;
+  document.getElementById('progressFill').style.width  = pct + '%';
+}
+
+function updateStats() {
+  const total    = APPOINTMENTS.length;
+  const attended = Object.values(STATE).filter(Boolean).length;
+  const rate     = total > 0 ? Math.round(attended/total*100) : 0;
+  document.getElementById('st-total').textContent    = total;
+  document.getElementById('st-attended').textContent = attended;
+  document.getElementById('st-rate').textContent     = rate + '%';
+
+  const counts = {};
+  CANONICAL_15.forEach(c => counts[c] = 0);
+  APPOINTMENTS.forEach((a, idx) => {
+    if (!STATE[idx]) return;
+    const actual = resolveNote(NOTES[idx]) || a.doctor;
+    if (counts[actual] !== undefined) counts[actual]++;
+  });
+
+  document.getElementById('statsList').innerHTML = CANONICAL_15
+    .map(doc => ({doc, count:counts[doc]||0}))
+    .sort((a,b) => b.count - a.count)
+    .map((item,i) => `
+      <div class="stat-row${item.count>0?' active':''}">
+        <span class="stat-num">${i+1}</span>
+        <span class="stat-name">أ. ${item.doc}</span>
+        <span class="stat-count">${item.count}</span>
+      </div>`).join('');
+}
+
+function filterCards() {
+  const q = document.getElementById('searchInput').value.trim();
+  document.querySelectorAll('.doctor-card').forEach(c => {
+    c.classList.toggle('hidden', q.length > 0 && !c.textContent.includes(q));
+  });
+}
+
+function toggleDrawer() {
+  document.getElementById('statsDrawer').classList.toggle('open');
+  document.getElementById('drawerOverlay').classList.toggle('open');
+}
+
+function confirmReset() {
+  if (confirm('إعادة تعيين جميع بيانات الحضور والملاحظات؟')) {
+    STATE = {}; NOTES = {};
+    localStorage.setItem(stateKey, '{}');
+    localStorage.setItem(noteKey,  '{}');
+    buildCards();
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   EXPORT → Google Sheets
+   ═══════════════════════════════════════════════ */
+async function exportToSheets() {
+  const attended = Object.values(STATE).filter(Boolean).length;
+  if (attended === 0) { alert('لم يتم تسجيل أي حضور بعد.'); return; }
+  if (!confirm(`حفظ بيانات اليوم في Google Sheets؟\nالحاضرون: ${attended} من ${APPOINTMENTS.length}`)) return;
+
+  const btn = document.getElementById('exportBtn');
+  btn.textContent = '⏳ جاري الحفظ...';
+  btn.disabled = true;
+
+  const total   = APPOINTMENTS.length;
+  const records = APPOINTMENTS.map((a, idx) => ({
+    scheduledDoctor: a.doctor,
+    actualDoctor:    resolveNote(NOTES[idx]) || a.doctor,
+    patient:         a.patient,
+    time:            a.time,
+    attended:        !!STATE[idx],
+    note:            NOTES[idx] || ''
+  }));
+
+  const payload = {
+    date: new Date().toISOString().split('T')[0],
+    day:  fileDay, total, attended,
+    attendanceRate: +(attended/total*100).toFixed(1),
+    records
+  };
+
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method:'POST', mode:'no-cors',
+      body: JSON.stringify(payload),
+      headers:{'Content-Type':'application/json'}
+    });
+    btn.textContent  = '✅ تم الحفظ في Google Sheets';
+    btn.style.background = '#0d7a5f';
+  } catch {
+    // fallback download
+    const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `مواعيد_${fileDate.replace(/\//g,'_')}.json`;
+    a.click();
+    btn.textContent = '⚠️ تم تنزيل الملف (يدوي)';
+  }
+
+  setTimeout(() => {
+    btn.textContent  = '💾 حفظ في Google Sheets';
+    btn.style.background = '';
+    btn.disabled = false;
+  }, 3500);
+}
+</script>
+</body>
+</html>
